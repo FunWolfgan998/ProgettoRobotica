@@ -26,12 +26,23 @@ VL53L0X sens_r;//right
 #define en_bl 12
 #define en_br 13
 
+enum Tile {
+  normal,
+  victim,
+  empty,
+  black
+};
+
+Tile tiles[20][20];
+bool walls[20][20];
+
+
 void setupSensor (int shutdown, VL53L0X sensor, int address) {
   digitalWrite(shutdown, HIGH);
   delay(10);
   if (!sensor.init()){
-    Serial.println("Error sensor: " + address);
-    while (1) {}
+    Serial.println("Error sensor: " + String(address));
+    while (1) {} 
   }
   sensor.setAddress(address);
 }
@@ -67,16 +78,25 @@ void setup() {
   setupSensor(SHDN_l, sens_l, 0x30);
   setupSensor(SHDN_r, sens_r, 0x30);
 
-  sens_1.startContinuous();
-  sens_2.startContinuous();
-  sens_3.startContinuous();
+  sens_f.startContinuous();
+  sens_l.startContinuous();
+  sens_r.startContinuous();
   
 }
 
+void setWall(int x, int y, int value){
+  walls[x][y] = value;
+}
+
+
+void setTile(int x, int y, Tile value){
+  tiles[x][y] = value;
+}
+
 void loop() {
-  int dist1 = sens_1.readRangeContinuousMillimeters();
-  int dist2 = sens_2.readRangeContinuousMillimeters();
-  int dist3 = sens_3.readRangeContinuousMillimeters();
+  int dist1 = sens_f.readRangeContinuousMillimeters();
+  int dist2 = sens_l.readRangeContinuousMillimeters();
+  int dist3 = sens_r.readRangeContinuousMillimeters();
 
   analogWrite(en_fl, 255);
   analogWrite(en_fr, 255);

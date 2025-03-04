@@ -24,10 +24,10 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS347
 #define mot_br_1 33
 #define mot_br_2 35
 
-#define en_fl 10 // intensità rotazione
-#define en_fr 11
-#define en_bl 12
-#define en_br 13
+#define en_fl 41 // intensità rotazione
+#define en_fr 43
+#define en_bl 42
+#define en_br 40
 
 enum Tile {
   normal,
@@ -167,6 +167,15 @@ void loop() {
   analogWrite(en_fr, 255);
   analogWrite(en_bl, 255);
   analogWrite(en_br, 255);
+
+  digitalWrite(mot_fl_1, HIGH);
+  digitalWrite(mot_fl_2, LOW);
+  digitalWrite(mot_fr_1, HIGH);
+  digitalWrite(mot_fr_2, LOW);
+  digitalWrite(mot_bl_1, HIGH);
+  digitalWrite(mot_bl_2, LOW);
+  digitalWrite(mot_br_1, HIGH);
+  digitalWrite(mot_br_2, LOW);
 
   delay(100);
 }

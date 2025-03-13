@@ -41,8 +41,9 @@ enum Tile {
 Tile tiles[20][20];
 bool walls[20][20];
 int motors[4] = {0, 0, 0, 0};
-int motSpeed = 175;
+int motSpeed = 140;
 bool ignoreRed = false;
+int lastDistances[6] = {-800, -800, -800, -800, -800, -800};
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
   pinMode(shutdownPin, OUTPUT);
@@ -214,39 +215,40 @@ int avgDistance (char c) {
   return sum/n;
 }
 
-void LED () {
-  digitalWrite(ledpin, HIGH);
-  delay(500);
-  digitalWrite(ledpin, LOW);
-  delay(500);
-  digitalWrite(ledpin, HIGH);
-  delay(500);
-  digitalWrite(ledpin, LOW);
-  delay(500);
-  digitalWrite(ledpin, HIGH);
-  delay(500);
-  digitalWrite(ledpin, LOW);
+double avgDifference(int value) {
+  int size = sizeof(lastDistances)/sizeof(int);
+  double sum = 0;
+  for (int i = 0; i < size; i++) {
+    sum += abs(lastDistances[i] - value);
+  }
+  return sum * 1.0 / (size);
 }
 
-void printData(bool color, bool dist) {
+void updateDistances(int newDistance) {
+  int size = sizeof(lastDistances)/sizeof(int);
+  for (int i = size-1; i > 0; i--) {
+    lastDistances[i] = lastDistances[i - 1];
+  }
+  lastDistances[0] = newDistance;
+}
+
+void LED () {
+  Serial.println("LEDDDDDDDDD");
+  delay(200);
+  for (int i = 0; i<5; i++) {
+    digitalWrite(ledpin, HIGH);
+    delay(500);
+    digitalWrite(ledpin, LOW);
+    delay(500);
+  }
+  delay(200);
+}
+
+void printDist(bool dist) {
   int dist1 = readDistance('f');
   int dist2 = readDistance('l');
   int dist3 = readDistance('r');
 
-  uint16_t r, g, b, c, colorTemp, lux;
-  tcs.getRawData(&r, &g, &b, &c);
-  colorTemp = tcs.calculateColorTemperature_dn40(r, g, b, c);
-  lux = tcs.calculateLux(r, g, b);
-
-  if (color){
-      Serial.print("Color Temp: "); Serial.print(colorTemp, DEC); Serial.print(" K - ");
-      Serial.print("Lux: "); Serial.print(lux, DEC); Serial.print(" - ");
-      Serial.print("R: "); Serial.print(r, DEC); Serial.print(" ");
-      Serial.print("G: "); Serial.print(g, DEC); Serial.print(" ");
-      Serial.print("B: "); Serial.print(b, DEC); Serial.print(" ");
-      Serial.print("C: "); Serial.print(c, DEC); Serial.print(" ");
-      Serial.println(" ");
-  }
   if (dist){
     Serial.print("Sensore 1: ");
     Serial.print(dist1);
@@ -258,9 +260,35 @@ void printData(bool color, bool dist) {
 
     Serial.print("Sensore 3: ");
     Serial.print(dist3);
-    Serial.println(" cm");
+    Serial.print(" cm");
+
+    Serial.print(" | "); Serial.print(lastDistances[0]); Serial.print(" "); Serial.print(lastDistances[1]);
+    Serial.print(" "); Serial.print(lastDistances[2]);Serial.print(" "); Serial.print(lastDistances[3]);
+    Serial.print(" "); Serial.print(lastDistances[4]); Serial.print(" "); Serial.print(lastDistances[5]);
+    Serial.println();
   }
 }
+
+void getColor(uint16_t &r, uint16_t &g, uint16_t &b, uint16_t &c, uint16_t &colorTemp, uint16_t &lux) {
+    getColor(r, g, b, c, colorTemp, lux, false);
+}
+
+void getColor(uint16_t &r, uint16_t &g, uint16_t &b, uint16_t &c, uint16_t &colorTemp, uint16_t &lux, bool print) {
+    tcs.getRawData(&r, &g, &b, &c);
+    colorTemp = tcs.calculateColorTemperature_dn40(r, g, b, c);
+    lux = tcs.calculateLux(r, g, b);
+
+    if (print) {
+        Serial.print("Color Temp: "); Serial.print(colorTemp, DEC); Serial.print(" K - ");
+        Serial.print("Lux: "); Serial.print(lux, DEC); Serial.print(" - ");
+        Serial.print("R: "); Serial.print(r, DEC); Serial.print(" ");
+        Serial.print("G: "); Serial.print(g, DEC); Serial.print(" ");
+        Serial.print("B: "); Serial.print(b, DEC); Serial.print(" ");
+        Serial.print("C: "); Serial.print(c, DEC); Serial.print(" ");
+        Serial.println();
+    }
+}
+
 
 void loop() {
   
@@ -270,17 +298,17 @@ void loop() {
   setMotor('b', 'r', motSpeed);
 
   while (true) {
-    printData (true, true);
+    printDist (true);
     uint16_t r, g, b, c, colorTemp, lux;
-    tcs.getRawData(&r, &g, &b, &c);
-    if ((((int)r)-((int)b))> 300  && (((int)r)-((int)g))> 300 && !ignoreRed) {
+    getColor(r, g, b, c, colorTemp, lux, false);
+    
+    if ((((int)r)-((int)b))> 600  && (((int)r)-((int)g))> 600 && !ignoreRed) {
       setMotor('f', 'l', 0);
       setMotor('f', 'r', 0);
       setMotor('b', 'l', 0);
       setMotor('b', 'r', 0);
       ignoreRed = true;
       LED();
-      delay(2500);
       setMotor('f', 'l', motSpeed);
       setMotor('f', 'r', motSpeed);
       setMotor('b', 'l', motSpeed);
@@ -289,7 +317,8 @@ void loop() {
     if (r>1800 && g>3500 && b>3500){
       ignoreRed = false;
     }
-    if (avgDistance('f') < 8 || avgDistance('f') > 985) {
+    if (avgDistance('f') < 15 || avgDistance('f') > 985 || avgDifference(avgDistance('f')) < 4) {
+      if (avgDifference(avgDistance('f')) < 4) { Serial.println("CORRETTIVOOO"); } else { Serial.println("CURVAAAAA"); }
       setMotor('f', 'l', 0);
       setMotor('f', 'r', 0);
       setMotor('b', 'l', 0);
@@ -326,7 +355,8 @@ void loop() {
       setMotor('b', 'l', motSpeed);
       setMotor('b', 'r', motSpeed);
     }
-    delay(30);
+    updateDistances(avgDistance('f'));
+    delay(1);
   }
   delay(5000);
 }

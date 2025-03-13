@@ -29,6 +29,8 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS347
 #define en_bl 2
 #define en_br 7
 
+#define ledpin 29
+
 enum Tile {
   normal,
   victim,
@@ -39,7 +41,8 @@ enum Tile {
 Tile tiles[20][20];
 bool walls[20][20];
 int motors[4] = {0, 0, 0, 0};
-
+int motSpeed = 175;
+bool ignoreRed = false;
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
   pinMode(shutdownPin, OUTPUT);
@@ -164,7 +167,6 @@ void findMotorPins(int target[3], char fb, char lr) {
 
 void setMotor (char fb, char lr, int intensity) {
   int index = findMotorIndex(fb, lr);
-  Serial.println(index);
   int pins[3];
   findMotorPins(pins, fb, lr);
   if (intensity == motors[index]){
@@ -203,15 +205,34 @@ int readDistance (char c) {
   return distance;
 }
 
+int avgDistance (char c) {
+  int n = 3;
+  int sum = 0;
+  for (int i = 0; i<n; i++) {
+    sum += readDistance(c);
+  }
+  return sum/n;
+}
 
-void loop() {
-  bool color = false;
-  bool dist = false;
+void LED () {
+  digitalWrite(ledpin, HIGH);
+  delay(500);
+  digitalWrite(ledpin, LOW);
+  delay(500);
+  digitalWrite(ledpin, HIGH);
+  delay(500);
+  digitalWrite(ledpin, LOW);
+  delay(500);
+  digitalWrite(ledpin, HIGH);
+  delay(500);
+  digitalWrite(ledpin, LOW);
+}
 
+void printData(bool color, bool dist) {
   int dist1 = readDistance('f');
   int dist2 = readDistance('l');
   int dist3 = readDistance('r');
-  
+
   uint16_t r, g, b, c, colorTemp, lux;
   tcs.getRawData(&r, &g, &b, &c);
   colorTemp = tcs.calculateColorTemperature_dn40(r, g, b, c);
@@ -239,11 +260,73 @@ void loop() {
     Serial.print(dist3);
     Serial.println(" cm");
   }
-  
-  setMotor('f', 'l', 100);
-  setMotor('f', 'r', 100);
-  setMotor('b', 'l', 100);
-  setMotor('b', 'r', 100);
+}
 
-  delay(100);
+void loop() {
+  
+  setMotor('f', 'l', motSpeed);
+  setMotor('f', 'r', motSpeed);
+  setMotor('b', 'l', motSpeed);
+  setMotor('b', 'r', motSpeed);
+
+  while (true) {
+    printData (true, true);
+    uint16_t r, g, b, c, colorTemp, lux;
+    tcs.getRawData(&r, &g, &b, &c);
+    if ((((int)r)-((int)b))> 300  && (((int)r)-((int)g))> 300 && !ignoreRed) {
+      setMotor('f', 'l', 0);
+      setMotor('f', 'r', 0);
+      setMotor('b', 'l', 0);
+      setMotor('b', 'r', 0);
+      ignoreRed = true;
+      LED();
+      delay(2500);
+      setMotor('f', 'l', motSpeed);
+      setMotor('f', 'r', motSpeed);
+      setMotor('b', 'l', motSpeed);
+      setMotor('b', 'r', motSpeed);
+    }
+    if (r>1800 && g>3500 && b>3500){
+      ignoreRed = false;
+    }
+    if (avgDistance('f') < 8 || avgDistance('f') > 985) {
+      setMotor('f', 'l', 0);
+      setMotor('f', 'r', 0);
+      setMotor('b', 'l', 0);
+      setMotor('b', 'r', 0);
+      delay(500);
+      setMotor('f', 'l', 50);
+      setMotor('f', 'r', 50);
+      setMotor('b', 'l', 50);
+      setMotor('b', 'r', 50);
+      delay(1000); //while (avgDistance('f') > 2){ printData(false, true); delay(30); }
+      setMotor('f', 'l', -50);
+      setMotor('f', 'r', -50);
+      setMotor('b', 'l', -50);
+      setMotor('b', 'r', -50);
+      delay(500);
+      setMotor('f', 'l', 0);
+      setMotor('f', 'r', 0);
+      setMotor('b', 'l', 0);
+      setMotor('b', 'r', 0);
+      delay(500);
+      bool dir = avgDistance('r') > avgDistance('l');
+      setMotor('f', 'l', 100 * (dir ? 1 : -1));
+      setMotor('f', 'r', 100 * (dir ? -1 : 1));
+      setMotor('b', 'l', 100 * (dir ? 1 : -1));
+      setMotor('b', 'r', 100 * (dir ? -1 : 1));
+      delay(1800);
+      setMotor('f', 'l', 0);
+      setMotor('f', 'r', 0);
+      setMotor('b', 'l', 0);
+      setMotor('b', 'r', 0);
+      delay(500);
+      setMotor('f', 'l', motSpeed);
+      setMotor('f', 'r', motSpeed);
+      setMotor('b', 'l', motSpeed);
+      setMotor('b', 'r', motSpeed);
+    }
+    delay(30);
+  }
+  delay(5000);
 }

@@ -207,7 +207,7 @@ int readDistance (char c) {
 }
 
 int avgDistance (char c) {
-  int n = 3;
+  int n = 5;
   int sum = 0;
   for (int i = 0; i<n; i++) {
     sum += readDistance(c);
@@ -289,18 +289,21 @@ void getColor(uint16_t &r, uint16_t &g, uint16_t &b, uint16_t &c, uint16_t &colo
     }
 }
 
-
-void loop() {
-  
+void setDefaultMotors(){
   setMotor('f', 'l', motSpeed);
   setMotor('f', 'r', motSpeed);
   setMotor('b', 'l', motSpeed);
   setMotor('b', 'r', motSpeed);
+}
+
+
+void loop() {
+  setDefaultMotors();
 
   while (true) {
-    printDist (true);
+    printDist (false);
     uint16_t r, g, b, c, colorTemp, lux;
-    getColor(r, g, b, c, colorTemp, lux, false);
+    getColor(r, g, b, c, colorTemp, lux, true);
     
     if ((((int)r)-((int)b))> 600  && (((int)r)-((int)g))> 600 && !ignoreRed) {
       setMotor('f', 'l', 0);
@@ -309,10 +312,21 @@ void loop() {
       setMotor('b', 'r', 0);
       ignoreRed = true;
       LED();
-      setMotor('f', 'l', motSpeed);
-      setMotor('f', 'r', motSpeed);
-      setMotor('b', 'l', motSpeed);
-      setMotor('b', 'r', motSpeed);
+      setDefaultMotors();
+    }
+    if ((int)lux <120){
+      Serial.println("NEROOOOO");
+      setMotor('f', 'l', 0);
+      setMotor('f', 'r', 0);
+      setMotor('b', 'l', 0);
+      setMotor('b', 'r', 0);
+      delay(200);
+      setMotor('f', 'l', 100);
+      setMotor('f', 'r', -100);
+      setMotor('b', 'l', 100);
+      setMotor('b', 'r', -100);
+      delay(2300);
+      setDefaultMotors();
     }
     if (r>1800 && g>3500 && b>3500){
       ignoreRed = false;
@@ -339,21 +353,18 @@ void loop() {
       setMotor('b', 'l', 0);
       setMotor('b', 'r', 0);
       delay(500);
-      bool dir = avgDistance('r') > avgDistance('l');
+      bool dir = avgDistance('r') < avgDistance('l');
       setMotor('f', 'l', 100 * (dir ? 1 : -1));
       setMotor('f', 'r', 100 * (dir ? -1 : 1));
       setMotor('b', 'l', 100 * (dir ? 1 : -1));
       setMotor('b', 'r', 100 * (dir ? -1 : 1));
-      delay(1800);
+      delay(1300); //vecchio: 1800
       setMotor('f', 'l', 0);
       setMotor('f', 'r', 0);
       setMotor('b', 'l', 0);
       setMotor('b', 'r', 0);
       delay(500);
-      setMotor('f', 'l', motSpeed);
-      setMotor('f', 'r', motSpeed);
-      setMotor('b', 'l', motSpeed);
-      setMotor('b', 'r', motSpeed);
+      setDefaultMotors();
     }
     updateDistances(avgDistance('f'));
     delay(1);

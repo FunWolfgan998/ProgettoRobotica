@@ -38,6 +38,7 @@ enum Tile {
 
 Tile tiles[20][20];
 bool walls[20][20];
+int motors[4] = {0, 0, 0, 0};
 
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
@@ -117,52 +118,95 @@ void setTile(int x, int y, Tile value){
 }
 
 
-/*int readDistance (char c) {
-  int trigPin = c=='f' ? trig_f : c=='l' ? trig_l : trig_r;
-  int echoPin = c=='f' ? echo_f : c=='l' ? echo_l : echo_r;
-  if (c != 'f' && c != 'l' && c != 'r') { Serial.println("Sensore scorretto"); }
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
+int findMotorIndex (char fb, char lr) {
+  int index = -1;
+  if (lr == 'l' && fb == 'f'){
+    index = 0;
+  } else if (lr == 'r' && fb == 'f') {
+    index = 1;
+  } else if (lr == 'l' && fb == 'b') {
+    index = 2;
+  } else if (lr == 'r' && fb == 'b') {
+    index = 3;
+  }
+  return index;
+}
 
-  int duration = pulseIn(echoPin, HIGH);
-  int distance = (duration*.0343)/2;
-  return distance;
-}*/
+void findMotorPins(int target[3], char fb, char lr) {
+  int enable;
+  int pin1;
+  int pin2;
+  if (lr == 'l' && fb == 'f') {
+    enable = en_fl;
+    pin1 = mot_fl_1;
+    pin2 = mot_fl_2;
+  } else if (lr == 'r' && fb == 'f') {
+    enable = en_fr;
+    pin1 = mot_fr_1;
+    pin2 = mot_fr_2;
+  } else if (lr == 'l' && fb == 'b') {
+    enable = en_bl;
+    pin1 = mot_bl_1;
+    pin2 = mot_bl_2;
+  } else if (lr == 'r' && fb == 'b') {
+    enable = en_br;
+    pin1 = mot_br_1;
+    pin2 = mot_br_2;
+  } else {
+    Serial.println("Motore errato");
+    return;
+  }
+  target[0] = enable;
+  target[1] = pin1;
+  target[2] = pin2;
+}
 
-int readDistance(char c) {
-  int trigPin = c == 'f' ? trig_f : c == 'l' ? trig_l : trig_r;
-  int echoPin = c == 'f' ? echo_f : c == 'l' ? echo_l : echo_r;
+
+void setMotor (char fb, char lr, int intensity) {
+  int index = findMotorIndex(fb, lr);
+  Serial.println(index);
+  int pins[3];
+  findMotorPins(pins, fb, lr);
+  if (intensity == motors[index]){
+    return;
+  } else if ((intensity < 0 && motors[index] < 0) || (intensity > 0 && motors[index] > 0)) {
+    analogWrite(pins[0], abs(intensity));
+  } else {
+    if (intensity >= 0) {
+      digitalWrite(pins[1], HIGH);
+      digitalWrite(pins[2], LOW);
+    } else {
+      digitalWrite(pins[1], LOW);
+      digitalWrite(pins[2], HIGH);
+    }
+    analogWrite(pins[0], abs(intensity));
+  }
+  motors[index] = intensity;
+}
+
+int readDistance (char c) {
+  int _trig = c == 'f' ? trig_f : c == 'l' ? trig_l : trig_r;
+  int _echo = c == 'f' ? echo_f : c == 'l' ? echo_l : echo_r;
   if (c != 'f' && c != 'l' && c != 'r') {
     Serial.println("Sensore scorretto");
-    return -1; // Aggiungi un ritorno di errore se il sensore è sbagliato
+    return -404; // Aggiungi un ritorno di errore se il sensore è sbagliato
   }
-
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  int duration = pulseIn(echoPin, HIGH);
-  if (duration == 0) { // Se non c'è eco, ritorna un errore
-    return -1;
-  }
-
-  int distance = (duration * 0.0343) / 2;
-  if (distance < 0 || distance > 4000) {  // Verifica distanze plausibili
-    return -1; // Aggiungi una condizione di errore
-  }
-
+  int distance=0;
+  long duration=0;
+  digitalWrite (_trig, LOW);
+  delayMicroseconds (2);
+  digitalWrite(_trig, HIGH);
+  delayMicroseconds (10) ;
+  digitalWrite (_trig, LOW);
+  duration = pulseIn (_echo, 1);
+  distance = ((duration+10) *0.0343)/2;
   return distance;
 }
 
 
 void loop() {
   bool color = false;
-  bool dist = true;
+  bool dist = false;
 
   int dist1 = readDistance('f');
   int dist2 = readDistance('l');
@@ -185,30 +229,21 @@ void loop() {
   if (dist){
     Serial.print("Sensore 1: ");
     Serial.print(dist1);
-    Serial.print(" mm\t");
+    Serial.print(" cm\t");
 
     Serial.print("Sensore 2: ");
     Serial.print(dist2);
-    Serial.print(" mm\t");
+    Serial.print(" cm\t");
 
     Serial.print("Sensore 3: ");
     Serial.print(dist3);
-    Serial.println(" mm");
+    Serial.println(" cm");
   }
   
-  analogWrite(en_fl, 255);
-  analogWrite(en_fr, 255);
-  analogWrite(en_bl, 255);
-  analogWrite(en_br, 255);
-
-  digitalWrite(mot_fl_1, HIGH);
-  digitalWrite(mot_fl_2, LOW);
-  digitalWrite(mot_fr_1, HIGH);
-  digitalWrite(mot_fr_2, LOW);
-  digitalWrite(mot_bl_1, HIGH);
-  digitalWrite(mot_bl_2, LOW);
-  digitalWrite(mot_br_1, HIGH);
-  digitalWrite(mot_br_2, LOW);
+  setMotor('f', 'l', 100);
+  setMotor('f', 'r', 100);
+  setMotor('b', 'l', 100);
+  setMotor('b', 'r', 100);
 
   delay(100);
 }

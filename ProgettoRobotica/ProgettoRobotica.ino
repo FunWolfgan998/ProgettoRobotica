@@ -2,32 +2,32 @@
 #include <VL53L0X.h> // Sensore di prossimità
 #include "Adafruit_TCS34725.h"
 
-VL53L0X sens_f;//front
-VL53L0X sens_l;//left
-VL53L0X sens_r;//right
-
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X);
 
-#define SHDN_f 9 //sto qui è quello non saldato e bisogna tenerlo xkè faccia contatto bene
-#define SHDN_l 11
-#define SHDN_r 53
+#define trig_f 22
+#define trig_l 24
+#define trig_r 26
 
-#define mot_fl_1 4 // direzione
-#define mot_fl_2 3
+#define echo_f 23
+#define echo_l 25
+#define echo_r 27
 
-#define mot_fr_1 7
-#define mot_fr_2 6
+#define mot_fl_1 10 // direzione
+#define mot_fl_2 9
 
-#define mot_bl_1 29
-#define mot_bl_2 31
+#define mot_fr_1 11
+#define mot_fr_2 12
 
-#define mot_br_1 33
-#define mot_br_2 35
+#define mot_bl_1 3
+#define mot_bl_2 4
 
-#define en_fl 41 // intensità rotazione
-#define en_fr 43
-#define en_bl 42
-#define en_br 40
+#define mot_br_1 6
+#define mot_br_2 5
+
+#define en_fl 8 // intensità rotazione
+#define en_fr 13
+#define en_bl 2
+#define en_br 7
 
 enum Tile {
   normal,
@@ -85,35 +85,25 @@ void setup() {
   pinMode(en_bl, OUTPUT);
   pinMode(en_br, OUTPUT);
 
-  pinMode(SHDN_f, OUTPUT);
-  pinMode(SHDN_l, OUTPUT);
-  pinMode(SHDN_r, OUTPUT);
+  pinMode(trig_f, OUTPUT);
+  pinMode(trig_l, OUTPUT);
+  pinMode(trig_r, OUTPUT);
 
   
-  digitalWrite(SHDN_f, LOW);
-  digitalWrite(SHDN_l, LOW);
-  digitalWrite(SHDN_r, LOW);
+  pinMode(echo_f, INPUT);
+  pinMode(echo_l, INPUT);
+  pinMode(echo_r, INPUT);
+
   delay(10);
 
-  setupSensor(sens_f, SHDN_f, 0x30);
-  setupSensor(sens_l, SHDN_l, 0x31);
-  setupSensor(sens_r, SHDN_r, 0x32);
 
 
-  /*delay(10);
-  digitalWrite(SHDN_f, LOW);
-  digitalWrite(SHDN_l, LOW);
-  digitalWrite(SHDN_r, LOW);*/
-
-  //setupColor(); //condivide il bus i2c e non si può shitdownarlo
+  setupColor(); //condivide il bus i2c e non si può shitdownarlo
                 // bisogna scollegare + e - del light sens x far andare gli altri
                 //
                 //quindi commmenta la funzione setupColor() se vuoi usare almeno gli altri sens
                 //inoltre togli i + e - del sensore di color
 
-  sens_f.startContinuous();
-  sens_l.startContinuous();
-  sens_r.startContinuous();
   
 }
 
@@ -127,14 +117,57 @@ void setTile(int x, int y, Tile value){
 }
 
 
+/*int readDistance (char c) {
+  int trigPin = c=='f' ? trig_f : c=='l' ? trig_l : trig_r;
+  int echoPin = c=='f' ? echo_f : c=='l' ? echo_l : echo_r;
+  if (c != 'f' && c != 'l' && c != 'r') { Serial.println("Sensore scorretto"); }
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  int duration = pulseIn(echoPin, HIGH);
+  int distance = (duration*.0343)/2;
+  return distance;
+}*/
+
+int readDistance(char c) {
+  int trigPin = c == 'f' ? trig_f : c == 'l' ? trig_l : trig_r;
+  int echoPin = c == 'f' ? echo_f : c == 'l' ? echo_l : echo_r;
+  if (c != 'f' && c != 'l' && c != 'r') {
+    Serial.println("Sensore scorretto");
+    return -1; // Aggiungi un ritorno di errore se il sensore è sbagliato
+  }
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  int duration = pulseIn(echoPin, HIGH);
+  if (duration == 0) { // Se non c'è eco, ritorna un errore
+    return -1;
+  }
+
+  int distance = (duration * 0.0343) / 2;
+  if (distance < 0 || distance > 4000) {  // Verifica distanze plausibili
+    return -1; // Aggiungi una condizione di errore
+  }
+
+  return distance;
+}
+
 
 void loop() {
   bool color = false;
   bool dist = true;
 
-  int dist1 = sens_f.readRangeContinuousMillimeters();
-  int dist2 = sens_l.readRangeContinuousMillimeters();
-  int dist3 = sens_r.readRangeContinuousMillimeters();
+  int dist1 = readDistance('f');
+  int dist2 = readDistance('l');
+  int dist3 = readDistance('r');
+  
   uint16_t r, g, b, c, colorTemp, lux;
   tcs.getRawData(&r, &g, &b, &c);
   colorTemp = tcs.calculateColorTemperature_dn40(r, g, b, c);

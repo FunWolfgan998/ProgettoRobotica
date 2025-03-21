@@ -41,8 +41,9 @@ enum Tile {
 Tile tiles[20][20];
 bool walls[20][20];
 int motors[4] = {0, 0, 0, 0};
-int motSpeed = 140;
+int motSpeed = 70;
 bool ignoreRed = false;
+bool ignoreBlack = false;
 int lastDistances[6] = {-800, -800, -800, -800, -800, -800};
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
@@ -235,7 +236,7 @@ void updateDistances(int newDistance) {
 void LED () {
   Serial.println("LEDDDDDDDDD");
   delay(200);
-  for (int i = 0; i<5; i++) {
+  for (int i = 0; i<6; i++) {
     digitalWrite(ledpin, HIGH);
     delay(500);
     digitalWrite(ledpin, LOW);
@@ -305,21 +306,33 @@ void loop() {
     uint16_t r, g, b, c, colorTemp, lux;
     getColor(r, g, b, c, colorTemp, lux, true);
     
-    if ((((int)r)-((int)b))> 600  && (((int)r)-((int)g))> 600 && !ignoreRed) {
+    if ((((int)r)-((int)b)) > 130  && (((int)r)-((int)g))> 120 && !ignoreRed) { //ROSSO
       setMotor('f', 'l', 0);
       setMotor('f', 'r', 0);
       setMotor('b', 'l', 0);
       setMotor('b', 'r', 0);
       ignoreRed = true;
+      delay(100);
+      setMotor('f', 'l', -100);
+      setMotor('f', 'r', -100);
+      setMotor('b', 'l', -100);
+      setMotor('b', 'r', -10);
+      delay(600);
+      setMotor('f', 'l', 0);
+      setMotor('f', 'r', 0);
+      setMotor('b', 'l', 0);
+      setMotor('b', 'r', 0);
+      delay(50);
       LED();
       setDefaultMotors();
     }
-    if ((int)lux <120){
+    if ((int)lux < 190 && !ignoreBlack){
       Serial.println("NEROOOOO");
       setMotor('f', 'l', 0);
       setMotor('f', 'r', 0);
       setMotor('b', 'l', 0);
       setMotor('b', 'r', 0);
+      ignoreBlack = true;
       delay(200);
       setMotor('f', 'l', 100);
       setMotor('f', 'r', -100);
@@ -330,8 +343,9 @@ void loop() {
     }
     if (r>1800 && g>3500 && b>3500){
       ignoreRed = false;
+      ignoreBlack = false;
     }
-    if (avgDistance('f') < 15 || avgDistance('f') > 985 || avgDifference(avgDistance('f')) < 4) {
+    if (avgDistance('f') < 15 || avgDistance('f') > 400 || avgDifference(avgDistance('f')) < 4) {
       if (avgDifference(avgDistance('f')) < 4) { Serial.println("CORRETTIVOOO"); } else { Serial.println("CURVAAAAA"); }
       setMotor('f', 'l', 0);
       setMotor('f', 'r', 0);
@@ -358,7 +372,7 @@ void loop() {
       setMotor('f', 'r', 100 * (dir ? -1 : 1));
       setMotor('b', 'l', 100 * (dir ? 1 : -1));
       setMotor('b', 'r', 100 * (dir ? -1 : 1));
-      delay(1300); //vecchio: 1800
+      delay(1100); //vecchio: 1800, altro 1300
       setMotor('f', 'l', 0);
       setMotor('f', 'r', 0);
       setMotor('b', 'l', 0);

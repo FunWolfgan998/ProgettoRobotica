@@ -367,7 +367,7 @@ void loop() {
       setMotor('b', 'l', 0);
       setMotor('b', 'r', 0);
       delay(500);
-      bool dir = avgDistance('r') < avgDistance('l');
+      bool dir = avgDistance('r') > avgDistance('l');
       setMotor('f', 'l', 100 * (dir ? 1 : -1));
       setMotor('f', 'r', 100 * (dir ? -1 : 1));
       setMotor('b', 'l', 100 * (dir ? 1 : -1));

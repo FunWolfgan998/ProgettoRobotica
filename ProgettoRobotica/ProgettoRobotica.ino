@@ -66,7 +66,7 @@ Calibration calibration = Calibration (
   SingleCalibration(455, 620, 630, 1870, 6666, 370), //white
   SingleCalibration(24, 38, 42, 115, 7950, 21), //black
   SingleCalibration(208, 80, 92, 383, 3070, 65528), //red
-  );
+);
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
   pinMode(shutdownPin, OUTPUT);

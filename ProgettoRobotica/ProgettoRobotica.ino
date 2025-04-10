@@ -1,19 +1,22 @@
+/*
+ * TODO: DIMINUZIONE TEMPO LETTURA COLORE, DROP, CALIBRAZIONE
+*/
 #include <Wire.h>//
 #include <VL53L0X.h> // Sensore di prossimità
 #include "Adafruit_TCS34725.h"
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X);
 
-#define trig_f 22
-#define trig_l 24
-#define trig_r 26
+#define trig_f 23
+#define trig_l 25
+#define trig_r 27
 
-#define echo_f 23
-#define echo_l 25
-#define echo_r 27
+#define echo_f 22
+#define echo_l 24
+#define echo_r 26
 
-#define mot_fl_1 10 // direzione
-#define mot_fl_2 9
+#define mot_fl_1 5 // direzione
+#define mot_fl_2 6
 
 #define mot_fr_1 11
 #define mot_fr_2 12
@@ -21,15 +24,15 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS347
 #define mot_bl_1 3
 #define mot_bl_2 4
 
-#define mot_br_1 6
-#define mot_br_2 5
+#define mot_br_1 9
+#define mot_br_2 10
 
-#define en_fl 8 // intensità rotazione
+#define en_fl 7 // intensità rotazione
 #define en_fr 13
 #define en_bl 2
-#define en_br 7
+#define en_br 8
 
-#define ledpin 29
+#define ledpin 53
 
 enum Tile {
   normal,

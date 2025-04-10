@@ -19,14 +19,14 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_120MS, TCS347
 #define mot_fl_1 5 // direzione
 #define mot_fl_2 6
 
-#define mot_fr_1 11
-#define mot_fr_2 12
+#define mot_fr_1 12
+#define mot_fr_2 11
 
 #define mot_bl_1 3
 #define mot_bl_2 4
 
-#define mot_br_1 9
-#define mot_br_2 10
+#define mot_br_1 10
+#define mot_br_2 9
 
 #define en_fl 7 // intensità rotazione
 #define en_fr 13
@@ -62,10 +62,10 @@ int motSpeed = 70;
 bool ignoreRed = false;
 bool ignoreBlack = false;
 int lastDistances[6] = {-800, -800, -800, -800, -800, -800};
-Calibration calibration = Calibration (
+Calibration calibration = Calibration(
   SingleCalibration(455, 620, 630, 1870, 6666, 370), //white
   SingleCalibration(24, 38, 42, 115, 7950, 21), //black
-  SingleCalibration(208, 80, 92, 383, 3070, 65528), //red
+  SingleCalibration(208, 80, 92, 383, 3070, 65528) //red
 );
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
@@ -365,6 +365,9 @@ void loop() {
     }
     delay(100);
   }*/
+
+  Serial.println("***CONFIGURATING***");
+
   while (!digitalRead(btn_start)){
     uint16_t r, g, b, c, colorTemp, lux;
     
@@ -374,6 +377,7 @@ void loop() {
       while (digitalRead(btn_red)){
         getColor(r, g, b, c, colorTemp, lux, true);
         calibration.red.r, calibration.red.g, calibration.red.b, calibration.red.c, calibration.red.colorTemp, calibration.red.lux = r, g, b, c, colorTemp, lux;
+        delay(100);
       }
     } else if (digitalRead(btn_black)) {
       Serial.println("***BLACK CALIBRATION (HOLD FOR 200MS TO COMFIRM)(IF RESULTS APPEAR BELOW, THE CALIBRATION IS DONE - VALUES COULD BE OVERWRITTEN)***");
@@ -381,6 +385,7 @@ void loop() {
       while (digitalRead(btn_black)){
         getColor(r, g, b, c, colorTemp, lux, true);
         calibration.black.r, calibration.black.g, calibration.black.b, calibration.black.c, calibration.black.colorTemp, calibration.black.lux = r, g, b, c, colorTemp, lux;
+        delay(100);
       }
     } else if (digitalRead(btn_white)) {
       Serial.println("***WHITE CALIBRATION (HOLD FOR 200MS TO COMFIRM)(IF RESULTS APPEAR BELOW, THE CALIBRATION IS DONE - VALUES COULD BE OVERWRITTEN)***");
@@ -388,6 +393,7 @@ void loop() {
       while (digitalRead(btn_white)){
         getColor(r, g, b, c, colorTemp, lux, true);
         calibration.white.r, calibration.white.g, calibration.white.b, calibration.white.c, calibration.white.colorTemp, calibration.white.lux = r, g, b, c, colorTemp, lux;
+        delay(100);
       }
     }
     delay(100);
@@ -395,6 +401,12 @@ void loop() {
 
   delay(100);
   Serial.println("***STARTED***");
+  setDefaultMotors();
+
+  while(true){
+    uint16_t r, g, b, c, colorTemp, lux;
+    getColor(r, g, b, c, colorTemp, lux, true);
+  }
 
   while (true) {
     printDist (false);
@@ -454,5 +466,4 @@ void loop() {
     updateDistances(avgDistance('f'));
     delay(1);
   }
-  delay(5000);
 }

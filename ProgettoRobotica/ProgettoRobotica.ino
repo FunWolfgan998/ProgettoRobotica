@@ -6,7 +6,7 @@
 #include <VL53L0X.h> // Sensore di prossimità
 #include "Adafruit_TCS34725.h"
 
-Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X);
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_120MS, TCS34725_GAIN_1X);
 
 #define trig_f 23
 #define trig_l 25
@@ -38,7 +38,22 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS347
 
 #define btn_start 33
 #define btn_red 35
-#define btn_black 22
+#define btn_black 37
+#define btn_white 39
+
+struct SingleCalibration {
+  uint16_t r, g, b, c, colorTemp, lux;
+  SingleCalibration(uint16_t r = 0, uint16_t g = 0, uint16_t b = 0, uint16_t c = 0, uint16_t colorTemp = 0, uint16_t lux = 0)
+    : r(r), g(g), b(b), c(c), colorTemp(colorTemp), lux(lux) {}
+};
+
+struct Calibration {
+  SingleCalibration white;
+  SingleCalibration black;
+  SingleCalibration red;
+  Calibration(SingleCalibration white = {}, SingleCalibration black = {}, SingleCalibration red = {})
+    : white(white), black(black), red(red) {}
+};
 
 Servo servo;
 bool walls[20][20];
@@ -47,6 +62,11 @@ int motSpeed = 70;
 bool ignoreRed = false;
 bool ignoreBlack = false;
 int lastDistances[6] = {-800, -800, -800, -800, -800, -800};
+Calibration calibration = Calibration (
+  SingleCalibration(455, 620, 630, 1870, 6666, 370), //white
+  SingleCalibration(24, 38, 42, 115, 7950, 21), //black
+  SingleCalibration(208, 80, 92, 383, 3070, 65528), //red
+  );
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
   pinMode(shutdownPin, OUTPUT);
@@ -74,12 +94,14 @@ void setupColor(){
   }
 }
 
-
 void setup() {
   Serial.begin(9600);
   Wire.begin();
 
-  servo.attach(servopin);
+  pinMode(btn_start, INPUT);
+  pinMode(btn_red, INPUT);
+  pinMode(btn_black, INPUT);
+  pinMode(btn_white, INPUT);
 
   pinMode(mot_fl_1, OUTPUT);
   pinMode(mot_fl_2, OUTPUT);
@@ -227,10 +249,11 @@ void updateDistances(int newDistance) {
   lastDistances[0] = newDistance;
 }
 
-void LED () {
-  Serial.println("LEDDDDDDDDD");
+void DROP () {
+  Serial.println("LEDDDDDDDDD / DROPPP");
+  turnServo();
   delay(200);
-  for (int i = 0; i<6; i++) {
+  for (int i = 0; i<5; i++) {
     digitalWrite(ledpin, HIGH);
     delay(500);
     digitalWrite(ledpin, LOW);
@@ -291,33 +314,95 @@ void setDefaultMotors(){
   setMotor('b', 'r', motSpeed);
 }
 
+void turnServo (){
+  servo.attach(servopin);
+  delay(50);
+  servo.writeMicroseconds(100);
+  delay(948);
+  servo.detach();
+  delay(50);
+}
+
+void setAllMotors(int v){
+  setMotor('f', 'l', v);
+  setMotor('f', 'r', v);
+  setMotor('b', 'l', v);
+  setMotor('b', 'r', v);
+}
+
+bool isInRange (int a, int b, float minpercb, float maxpercb){
+  return (a > b*minpercb && a < b*maxpercb);
+}
+
+bool isCOLOR_white (uint16_t r, uint16_t g, uint16_t b){
+  //nota che il R è pre qualche motivo più basso di un 30-40% con colore omogeneo in r g b e invece B è mediamente superiore di 15% ma dato che avviene sia nella calibrazione che a runtime ciò e trasparente (qui)
+  return (isInRange(r, calibration.white.r, 0.7, 1.3) && isInRange(g, calibration.white.g, 0.7, 1.3) && isInRange(b, calibration.white.b, 0.7, 1.3));
+}
+
+bool isCOLOR_red (uint16_t r, uint16_t g, uint16_t b){
+  //(((int)r)-((int)b)) > 130  && (((int)r)-((int)g))> 120
+  return (isInRange(r, calibration.red.r, 0.6, 1.4) && isInRange(g, calibration.red.g, 0.6, 1.4) && isInRange(b, calibration.red.b, 0.6, 1.4));
+}
+
+bool isCOLOR_black (uint16_t r, uint16_t g, uint16_t b){
+  //(int)lux < 190
+  return (isInRange(r, calibration.black.r, 0.6, 1.4) && isInRange(g, calibration.black.g, 0.6, 1.4) && isInRange(b, calibration.black.b, 0.6, 1.4));
+}
 
 void loop() {
-  while (true){
-    Serial.println(digitalRead(btn_start));
-  }
-  while (!digitalRead(btn_start)){
+  /*while (true){
+    Serial.println(String(digitalRead(btn_start)) + " " + String(digitalRead(btn_red)) + " " + String(digitalRead(btn_black)));
+  }*/
+  /*while (!digitalRead(btn_start)){
     uint16_t r, g, b, c, colorTemp, lux;
     getColor(r, g, b, c, colorTemp, lux, false);
     
     if (digitalRead(btn_red)){
       getColor(r, g, b, c, colorTemp, lux, true);
     } else if (digitalRead(btn_black)) {
-      getColor(r, g, b, c, colorTemp, lux, true);
+      Serial.println("madonna troia");
+      turnServo();
+    }
+    delay(100);
+  }*/
+  while (!digitalRead(btn_start)){
+    uint16_t r, g, b, c, colorTemp, lux;
+    
+    if (digitalRead(btn_red)){
+      Serial.println("***RED CALIBRATION (HOLD FOR 200MS TO COMFIRM)(IF RESULTS APPEAR BELOW, THE CALIBRATION IS DONE - VALUES COULD BE OVERWRITTEN)***");
+      delay(200);
+      while (digitalRead(btn_red)){
+        getColor(r, g, b, c, colorTemp, lux, true);
+        calibration.red.r, calibration.red.g, calibration.red.b, calibration.red.c, calibration.red.colorTemp, calibration.red.lux = r, g, b, c, colorTemp, lux;
+      }
+    } else if (digitalRead(btn_black)) {
+      Serial.println("***BLACK CALIBRATION (HOLD FOR 200MS TO COMFIRM)(IF RESULTS APPEAR BELOW, THE CALIBRATION IS DONE - VALUES COULD BE OVERWRITTEN)***");
+      delay(200);
+      while (digitalRead(btn_black)){
+        getColor(r, g, b, c, colorTemp, lux, true);
+        calibration.black.r, calibration.black.g, calibration.black.b, calibration.black.c, calibration.black.colorTemp, calibration.black.lux = r, g, b, c, colorTemp, lux;
+      }
+    } else if (digitalRead(btn_white)) {
+      Serial.println("***WHITE CALIBRATION (HOLD FOR 200MS TO COMFIRM)(IF RESULTS APPEAR BELOW, THE CALIBRATION IS DONE - VALUES COULD BE OVERWRITTEN)***");
+      delay(200);
+      while (digitalRead(btn_white)){
+        getColor(r, g, b, c, colorTemp, lux, true);
+        calibration.white.r, calibration.white.g, calibration.white.b, calibration.white.c, calibration.white.colorTemp, calibration.white.lux = r, g, b, c, colorTemp, lux;
+      }
     }
     delay(100);
   }
-  
+
+  delay(100);
+  Serial.println("***STARTED***");
+
   while (true) {
     printDist (false);
     uint16_t r, g, b, c, colorTemp, lux;
     getColor(r, g, b, c, colorTemp, lux, true);
     
-    if ((((int)r)-((int)b)) > 130  && (((int)r)-((int)g))> 120 && !ignoreRed) { //ROSSO
-      setMotor('f', 'l', 0);
-      setMotor('f', 'r', 0);
-      setMotor('b', 'l', 0);
-      setMotor('b', 'r', 0);
+    if (isCOLOR_red(r, g, b) && !ignoreRed) { //ROSSO
+      setAllMotors(0);
       ignoreRed = true;
       delay(100);
       setMotor('f', 'l', -100);
@@ -325,20 +410,14 @@ void loop() {
       setMotor('b', 'l', -100);
       setMotor('b', 'r', -10);
       delay(600);
-      setMotor('f', 'l', 0);
-      setMotor('f', 'r', 0);
-      setMotor('b', 'l', 0);
-      setMotor('b', 'r', 0);
+      setAllMotors(0);
       delay(50);
-      LED();
+      DROP();
       setDefaultMotors();
     }
-    if ((int)lux < 190 && !ignoreBlack){
+    if (isCOLOR_black(r, g, b) && !ignoreBlack){
       Serial.println("NEROOOOO");
-      setMotor('f', 'l', 0);
-      setMotor('f', 'r', 0);
-      setMotor('b', 'l', 0);
-      setMotor('b', 'r', 0);
+      setAllMotors(0);
       ignoreBlack = true;
       delay(200);
       setMotor('f', 'l', 100);
@@ -348,31 +427,19 @@ void loop() {
       delay(2300);
       setDefaultMotors();
     }
-    if (r>1800 && g>3500 && b>3500){
+    if (isCOLOR_white(r, g, b)){
       ignoreRed = false;
       ignoreBlack = false;
     }
     if (avgDistance('f') < 15 || avgDistance('f') > 400 || avgDifference(avgDistance('f')) < 4) {
       if (avgDifference(avgDistance('f')) < 4) { Serial.println("CORRETTIVOOO"); } else { Serial.println("CURVAAAAA"); }
-      setMotor('f', 'l', 0);
-      setMotor('f', 'r', 0);
-      setMotor('b', 'l', 0);
-      setMotor('b', 'r', 0);
+      setAllMotors(0);
       delay(500);
-      setMotor('f', 'l', 50);
-      setMotor('f', 'r', 50);
-      setMotor('b', 'l', 50);
-      setMotor('b', 'r', 50);
+      setAllMotors(50);
       delay(1000); //while (avgDistance('f') > 2){ printData(false, true); delay(30); }
-      setMotor('f', 'l', -50);
-      setMotor('f', 'r', -50);
-      setMotor('b', 'l', -50);
-      setMotor('b', 'r', -50);
+      setAllMotors(-50);
       delay(500);
-      setMotor('f', 'l', 0);
-      setMotor('f', 'r', 0);
-      setMotor('b', 'l', 0);
-      setMotor('b', 'r', 0);
+      setAllMotors(0);
       delay(500);
       bool dir = avgDistance('r') > avgDistance('l');
       setMotor('f', 'l', 100 * (dir ? 1 : -1));
@@ -380,10 +447,7 @@ void loop() {
       setMotor('b', 'l', 100 * (dir ? 1 : -1));
       setMotor('b', 'r', 100 * (dir ? -1 : 1));
       delay(1100); //vecchio: 1800, altro 1300
-      setMotor('f', 'l', 0);
-      setMotor('f', 'r', 0);
-      setMotor('b', 'l', 0);
-      setMotor('b', 'r', 0);
+      setAllMotors(0);
       delay(500);
       setDefaultMotors();
     }

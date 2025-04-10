@@ -4,6 +4,7 @@
 #include <Wire.h>//
 #include <VL53L0X.h> // Sensore di prossimità
 #include "Adafruit_TCS34725.h"
+#include <Servo.h>
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X);
 
@@ -34,12 +35,9 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS347
 
 #define ledpin 53
 
-enum Tile {
-  normal,
-  victim,
-  empty,
-  black
-};
+#define servo1pin 20
+
+Servo servo1;
 
 Tile tiles[20][20];
 bool walls[20][20];
@@ -79,6 +77,8 @@ void setupColor(){
 void setup() {
   Serial.begin(9600);
   Wire.begin();
+
+  servo1.attach(servo1pin);
 
   pinMode(mot_fl_1, OUTPUT);
   pinMode(mot_fl_2, OUTPUT);

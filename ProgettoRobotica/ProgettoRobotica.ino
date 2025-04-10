@@ -1,10 +1,10 @@
 /*
  * TODO: DIMINUZIONE TEMPO LETTURA COLORE, DROP, CALIBRAZIONE
 */
+#include <Servo.h>
 #include <Wire.h>//
 #include <VL53L0X.h> // Sensore di prossimità
 #include "Adafruit_TCS34725.h"
-#include <Servo.h>
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X);
 
@@ -34,12 +34,13 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS347
 #define en_br 8
 
 #define ledpin 53
+#define servopin 51
 
-#define servo1pin 20
+#define btn_start 33
+#define btn_red 35
+#define btn_black 22
 
-Servo servo1;
-
-Tile tiles[20][20];
+Servo servo;
 bool walls[20][20];
 int motors[4] = {0, 0, 0, 0};
 int motSpeed = 70;
@@ -78,7 +79,7 @@ void setup() {
   Serial.begin(9600);
   Wire.begin();
 
-  servo1.attach(servo1pin);
+  servo.attach(servopin);
 
   pinMode(mot_fl_1, OUTPUT);
   pinMode(mot_fl_2, OUTPUT);
@@ -115,16 +116,6 @@ void setup() {
 
   
 }
-
-void setWall(int x, int y, int value){
-  walls[x][y] = value;
-}
-
-
-void setTile(int x, int y, Tile value){
-  tiles[x][y] = value;
-}
-
 
 int findMotorIndex (char fb, char lr) {
   int index = -1;
@@ -302,8 +293,21 @@ void setDefaultMotors(){
 
 
 void loop() {
-  setDefaultMotors();
-
+  while (true){
+    Serial.println(digitalRead(btn_start));
+  }
+  while (!digitalRead(btn_start)){
+    uint16_t r, g, b, c, colorTemp, lux;
+    getColor(r, g, b, c, colorTemp, lux, false);
+    
+    if (digitalRead(btn_red)){
+      getColor(r, g, b, c, colorTemp, lux, true);
+    } else if (digitalRead(btn_black)) {
+      getColor(r, g, b, c, colorTemp, lux, true);
+    }
+    delay(100);
+  }
+  
   while (true) {
     printDist (false);
     uint16_t r, g, b, c, colorTemp, lux;

@@ -535,7 +535,7 @@ void loop() {
       setMotor('f', 'r', -100);
       setMotor('b', 'l', 100);
       setMotor('b', 'r', -100);
-      delay(2300);
+      delay(2780);
       setDefaultMotors();
       avgdistf = avgDistance('f');
     }
@@ -587,7 +587,7 @@ void loop() {
       setMotor('f', 'r', 100 * (dir ? -1 : 1));
       setMotor('b', 'l', 100 * (dir ? 1 : -1));
       setMotor('b', 'r', 100 * (dir ? -1 : 1));
-      delay(1100); //vecchio: 1800, altro 1300
+      delay(1320); //vecchio: 1800, altro 1300
       setAllMotors(0);
       delay(100);
       setDefaultMotors();

@@ -64,6 +64,8 @@ bool ignoreRed = false;
 bool ignoreBlack = false;
 int lastDistances[10] = {-800, -800, -800, -800, -800, -800, -800, -800, -800, -800};
 Calibration calibration;
+int numTurnL = 0;
+int numTurnR = 0;
 
 void initCalib() {
   /*saveCalib(2, SingleCalibration(117, 132, 1126, 461, 5494, 78));     //white
@@ -165,7 +167,7 @@ void setup() {
   pinMode(echo_r, INPUT);
 
   delay(10);
-
+  
 
 
   setupColor(); //condivide il bus i2c e non si può shitdownarlo
@@ -361,12 +363,23 @@ void setDefaultMotors(){
 }
 
 void turnServo (){
-  servo.attach(servopin);
+  /*servo.attach(servopin);
   delay(50);
   servo.writeMicroseconds(100);
   delay(948);
   servo.detach();
-  delay(50);
+  delay(50);*/
+  Serial.println("DROPPING");
+  int n = 9;
+  for (int i = 0; i<n; i++){
+    Serial.println("DROPPING");
+    servo.attach(servopin);
+    delay(20);
+    servo.writeMicroseconds(100);
+    delay(13); //qui
+    servo.detach();
+    delay(225);
+  }
 }
 
 void setAllMotors(int v){
@@ -533,7 +546,11 @@ void loop() {
     }
     bool correttivo = avgDifference(avgdistf) < 6;
     if ((avgdistf < 11 || avgdistf > 400 || correttivo) && true) { //qui curva e correttivo
-      if (correttivo) { Serial.println("CORRETTIVOOO"); } else { Serial.println("CURVAAAAA " + String(avgdistf)); }
+      if (correttivo) {
+        Serial.println("CORRETTIVOOO");
+      } else {
+          Serial.println("CURVAAAAA " + String(avgdistf));
+      }
       setAllMotors(0);
       delay(100);
       setAllMotors(50);
@@ -542,7 +559,30 @@ void loop() {
       delay(500);
       setAllMotors(0);
       delay(100);
+
       bool dir = avgDistance('r') > avgDistance('l');
+
+      if (dir){
+        if (numTurnL == 0){
+          numTurnR += 1;
+        } else {
+          numTurnR = 1;
+          numTurnL = 0;
+        }
+      } else {
+        if (numTurnR == 0){
+          numTurnL += 1;
+        } else {
+          numTurnL = 1;
+          numTurnR = 0;
+        }
+      }
+
+      if ((numTurnR == 4 || numTurnL == 4) && false){ // && true/false per far attivare o no
+        dir = !dir;
+        Serial.println("INVERTIII");
+      }
+      
       setMotor('f', 'l', 100 * (dir ? 1 : -1));
       setMotor('f', 'r', 100 * (dir ? -1 : 1));
       setMotor('b', 'l', 100 * (dir ? 1 : -1));

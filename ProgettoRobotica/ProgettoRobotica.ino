@@ -5,6 +5,7 @@
 #include <Wire.h>//
 #include <VL53L0X.h> // Sensore di prossimità
 #include "Adafruit_TCS34725.h"
+#include <EEPROM.h>
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_120MS, TCS34725_GAIN_1X);
 
@@ -61,12 +62,31 @@ int motors[4] = {0, 0, 0, 0};
 int motSpeed = 70;
 bool ignoreRed = false;
 bool ignoreBlack = false;
-int lastDistances[6] = {-800, -800, -800, -800, -800, -800};
-Calibration calibration = Calibration(
-  SingleCalibration(464, 634, 636, 1898, 6629, 383), //white
-  SingleCalibration(29, 37, 40, 113, 6800, 18), //black
-  SingleCalibration(245, 93, 105, 438, 3005, 65527) //red
-);
+int lastDistances[10] = {-800, -800, -800, -800, -800, -800, -800, -800, -800, -800};
+Calibration calibration;
+
+void initCalib() {
+  /*saveCalib(2, SingleCalibration(117, 132, 1126, 461, 5494, 78));     //white
+  saveCalib(1, SingleCalibration(16, 32, 36, 102, 6666, 15));        //black
+  saveCalib(0, SingleCalibration(198, 59, 59, 328, 2526, 65522));    //red*/
+  Calibration calibration = Calibration(
+    SingleCalibration(464, 634, 636, 1898, 6629, 383), //white
+    SingleCalibration(29, 37, 40, 113, 6800, 18), //black
+    SingleCalibration(245, 93, 105, 438, 3005, 65527) //red
+  );
+}
+
+void saveCalib(int index, SingleCalibration cfg) {
+  int addr = index * sizeof(SingleCalibration); // calcola indirizzo
+  EEPROM.put(addr, cfg);
+}
+
+SingleCalibration loadCalib(int index) {
+  SingleCalibration cfg;
+  int addr = index * sizeof(SingleCalibration); // calcola indirizzo
+  EEPROM.get(addr, cfg);
+  return cfg;
+}
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
   pinMode(shutdownPin, OUTPUT);
@@ -97,6 +117,24 @@ void setupColor(){
 void setup() {
   Serial.begin(9600);
   Wire.begin();
+  
+  initCalib();
+  calibration.red = loadCalib(0);
+  calibration.black = loadCalib(1);
+  calibration.white = loadCalib(2);
+
+  /*Serial.println(String(calibration.red.r));
+
+  saveCalib(2, SingleCalibration(117, 132, 1126, 461, 5494, 78));     //white
+  saveCalib(1, SingleCalibration(16, 32, 36, 102, 6666, 15));        //black
+  saveCalib(0, SingleCalibration(198, 59, 59, 328, 2526, 65522)); 
+
+  calibration.red = loadCalib(0);
+  calibration.black = loadCalib(1);
+  calibration.white = loadCalib(2);
+
+  Serial.println(String(calibration.red.r));*/
+  
 
   pinMode(btn_start, INPUT);
   pinMode(btn_red, INPUT);
@@ -251,15 +289,16 @@ void updateDistances(int newDistance) {
 
 void DROP () {
   Serial.println("LEDDDDDDDDD / DROPPP");
-  turnServo();
-  delay(200);
+  delay(100);
   for (int i = 0; i<5; i++) {
     digitalWrite(ledpin, HIGH);
     delay(500);
     digitalWrite(ledpin, LOW);
     delay(500);
   }
-  delay(200);
+  delay(100);
+  turnServo();
+  delay(100);
 }
 
 void printDist(bool dist) {
@@ -286,6 +325,12 @@ void printDist(bool dist) {
     Serial.print(" "); Serial.print(lastDistances[4]); Serial.print(" "); Serial.print(lastDistances[5]);
     Serial.println();
   }
+}
+void printHistory() {
+  Serial.print(" | "); Serial.print(lastDistances[0]); Serial.print(" "); Serial.print(lastDistances[1]);
+  Serial.print(" "); Serial.print(lastDistances[2]);Serial.print(" "); Serial.print(lastDistances[3]);
+  Serial.print(" "); Serial.print(lastDistances[4]); Serial.print(" "); Serial.print(lastDistances[5]);
+  Serial.println();
 }
 
 void getColor(uint16_t &r, uint16_t &g, uint16_t &b, uint16_t &c, uint16_t &colorTemp, uint16_t &lux) {
@@ -342,7 +387,7 @@ bool isCOLOR_white (uint16_t r, uint16_t g, uint16_t b){
 
 bool isCOLOR_red (uint16_t r, uint16_t g, uint16_t b){
   //(((int)r)-((int)b)) > 130  && (((int)r)-((int)g))> 120
-  Serial.println(isInRange(r, calibration.red.r, 0.6, 1.4) && isInRange(g, calibration.red.g, 0.6, 1.4) && isInRange(b, calibration.red.b, 0.6, 1.4));
+  //Serial.println(isInRange(r, calibration.red.r, 0.6, 1.4) && isInRange(g, calibration.red.g, 0.6, 1.4) && isInRange(b, calibration.red.b, 0.6, 1.4));
   return (isInRange(r, calibration.red.r, 0.6, 1.4) && isInRange(g, calibration.red.g, 0.6, 1.4) && isInRange(b, calibration.red.b, 0.6, 1.4));
 }
 
@@ -394,7 +439,9 @@ void loop() {
       digitalWrite(ledpin, HIGH);
       while (digitalRead(btn_red)){
         getColor(r, g, b, c, colorTemp, lux, true);
-        calibration.red.r, calibration.red.g, calibration.red.b, calibration.red.c, calibration.red.colorTemp, calibration.red.lux = r, g, b, c, colorTemp, lux;
+        calibration.red = SingleCalibration(r, g, b, c, colorTemp, lux);
+        Serial.println(String(calibration.red.r)); //da 16959
+        if (digitalRead(btn_start)) { saveCalib(0, calibration.red); }
         delay(100);
       }
       digitalWrite(ledpin, LOW);
@@ -407,7 +454,8 @@ void loop() {
       digitalWrite(ledpin, HIGH);
       while (digitalRead(btn_black)){
         getColor(r, g, b, c, colorTemp, lux, true);
-        calibration.black.r, calibration.black.g, calibration.black.b, calibration.black.c, calibration.black.colorTemp, calibration.black.lux = r, g, b, c, colorTemp, lux;
+        calibration.black = SingleCalibration(r, g, b, c, colorTemp, lux);
+        if (digitalRead(btn_start)) { saveCalib(1, calibration.black); }
         delay(100);
       }
       digitalWrite(ledpin, LOW);
@@ -420,7 +468,8 @@ void loop() {
       digitalWrite(ledpin, HIGH);
       while (digitalRead(btn_white)){
         getColor(r, g, b, c, colorTemp, lux, true);
-        calibration.white.r, calibration.white.g, calibration.white.b, calibration.white.c, calibration.white.colorTemp, calibration.white.lux = r, g, b, c, colorTemp, lux;
+        calibration.white = SingleCalibration(r, g, b, c, colorTemp, lux);
+        if (digitalRead(btn_start)) { saveCalib(2, calibration.white); }
         delay(100);
       }
       digitalWrite(ledpin, LOW);
@@ -432,6 +481,7 @@ void loop() {
   delay(100);
   Serial.println("***STARTED***");
   setDefaultMotors();
+  Serial.println(String(calibration.red.r));
 
   /*while (true) {
     //printDist (true);
@@ -448,6 +498,7 @@ void loop() {
   while (true) {
     uint16_t r, g, b, c, colorTemp, lux;
     getColor(r, g, b, c, colorTemp, lux, true);
+    printHistory();
     int avgdistf = avgDistance('f');
     
     if (isCOLOR_red(r, g, b) && !ignoreRed) { //ROSSO
@@ -460,6 +511,7 @@ void loop() {
       delay(50);
       DROP();
       setDefaultMotors();
+      avgdistf = avgDistance('f');
     }
     if (isCOLOR_black(r, g, b) && !ignoreBlack){
       Serial.println("NEROOOOO");
@@ -472,13 +524,16 @@ void loop() {
       setMotor('b', 'r', -100);
       delay(2300);
       setDefaultMotors();
+      avgdistf = avgDistance('f');
     }
     if (isCOLOR_white(r, g, b)){
       ignoreRed = false;
       ignoreBlack = false;
+      avgdistf = avgDistance('f');
     }
-    if ((avgdistf < 11 || avgdistf > 400 /*|| avgDifference(avgdistf) < 4*/) && true) {
-      if (avgDifference(avgdistf) < 4) { Serial.println("CORRETTIVOOO"); } else { Serial.println("CURVAAAAA " + String(avgdistf)); }
+    bool correttivo = avgDifference(avgdistf) < 6;
+    if ((avgdistf < 11 || avgdistf > 400 || correttivo) && true) { //qui curva e correttivo
+      if (correttivo) { Serial.println("CORRETTIVOOO"); } else { Serial.println("CURVAAAAA " + String(avgdistf)); }
       setAllMotors(0);
       delay(100);
       setAllMotors(50);
@@ -496,6 +551,7 @@ void loop() {
       setAllMotors(0);
       delay(100);
       setDefaultMotors();
+      avgdistf = avgDistance('f');
     }
     updateDistances(avgdistf);
     delay(1);

@@ -63,9 +63,9 @@ bool ignoreRed = false;
 bool ignoreBlack = false;
 int lastDistances[6] = {-800, -800, -800, -800, -800, -800};
 Calibration calibration = Calibration(
-  SingleCalibration(455, 620, 630, 1870, 6666, 370), //white
-  SingleCalibration(24, 38, 42, 115, 7950, 21), //black
-  SingleCalibration(208, 80, 92, 383, 3070, 65528) //red
+  SingleCalibration(464, 634, 636, 1898, 6629, 383), //white
+  SingleCalibration(29, 37, 40, 113, 6800, 18), //black
+  SingleCalibration(245, 93, 105, 438, 3005, 65527) //red
 );
 
 void setupSensor(VL53L0X &sensor, int shutdownPin, int address) {
@@ -224,7 +224,7 @@ int readDistance (char c) {
 }
 
 int avgDistance (char c) {
-  int n = 5;
+  int n = 4;
   int sum = 0;
   for (int i = 0; i<n; i++) {
     sum += readDistance(c);
@@ -263,11 +263,12 @@ void DROP () {
 }
 
 void printDist(bool dist) {
-  int dist1 = readDistance('f');
-  int dist2 = readDistance('l');
-  int dist3 = readDistance('r');
 
   if (dist){
+    
+    int dist1 = readDistance('f');
+    int dist2 = readDistance('l');
+    int dist3 = readDistance('r');
     Serial.print("Sensore 1: ");
     Serial.print(dist1);
     Serial.print(" cm\t");
@@ -341,6 +342,7 @@ bool isCOLOR_white (uint16_t r, uint16_t g, uint16_t b){
 
 bool isCOLOR_red (uint16_t r, uint16_t g, uint16_t b){
   //(((int)r)-((int)b)) > 130  && (((int)r)-((int)g))> 120
+  Serial.println(isInRange(r, calibration.red.r, 0.6, 1.4) && isInRange(g, calibration.red.g, 0.6, 1.4) && isInRange(b, calibration.red.b, 0.6, 1.4));
   return (isInRange(r, calibration.red.r, 0.6, 1.4) && isInRange(g, calibration.red.g, 0.6, 1.4) && isInRange(b, calibration.red.b, 0.6, 1.4));
 }
 
@@ -366,6 +368,19 @@ void loop() {
     delay(100);
   }*/
 
+  /*while (!digitalRead(btn_start)){
+    uint16_t r, g, b, c, colorTemp, lux;
+    getColor(r, g, b, c, colorTemp, lux, false);
+    
+    if (digitalRead(btn_red)){
+      Serial.println(isCOLOR_red(r, g, b));
+    } else if (digitalRead(btn_black)) {
+      Serial.println("madonna troia");
+      turnServo();
+    }
+    delay(100);
+  }*/
+
   Serial.println("***CONFIGURATING***");
 
   while (!digitalRead(btn_start)){
@@ -373,28 +388,43 @@ void loop() {
     
     if (digitalRead(btn_red)){
       Serial.println("***RED CALIBRATION (HOLD FOR 200MS TO COMFIRM)(IF RESULTS APPEAR BELOW, THE CALIBRATION IS DONE - VALUES COULD BE OVERWRITTEN)***");
-      delay(200);
+      delay(100);
+      setAllMotors(motSpeed);
+      delay(100);
+      digitalWrite(ledpin, HIGH);
       while (digitalRead(btn_red)){
         getColor(r, g, b, c, colorTemp, lux, true);
         calibration.red.r, calibration.red.g, calibration.red.b, calibration.red.c, calibration.red.colorTemp, calibration.red.lux = r, g, b, c, colorTemp, lux;
         delay(100);
       }
+      digitalWrite(ledpin, LOW);
+      setAllMotors(0);
     } else if (digitalRead(btn_black)) {
       Serial.println("***BLACK CALIBRATION (HOLD FOR 200MS TO COMFIRM)(IF RESULTS APPEAR BELOW, THE CALIBRATION IS DONE - VALUES COULD BE OVERWRITTEN)***");
-      delay(200);
+      delay(100);
+      setAllMotors(motSpeed);
+      delay(100);
+      digitalWrite(ledpin, HIGH);
       while (digitalRead(btn_black)){
         getColor(r, g, b, c, colorTemp, lux, true);
         calibration.black.r, calibration.black.g, calibration.black.b, calibration.black.c, calibration.black.colorTemp, calibration.black.lux = r, g, b, c, colorTemp, lux;
         delay(100);
       }
+      digitalWrite(ledpin, LOW);
+      setAllMotors(0);
     } else if (digitalRead(btn_white)) {
       Serial.println("***WHITE CALIBRATION (HOLD FOR 200MS TO COMFIRM)(IF RESULTS APPEAR BELOW, THE CALIBRATION IS DONE - VALUES COULD BE OVERWRITTEN)***");
-      delay(200);
+      delay(100);
+      setAllMotors(motSpeed);
+      delay(100);
+      digitalWrite(ledpin, HIGH);
       while (digitalRead(btn_white)){
         getColor(r, g, b, c, colorTemp, lux, true);
         calibration.white.r, calibration.white.g, calibration.white.b, calibration.white.c, calibration.white.colorTemp, calibration.white.lux = r, g, b, c, colorTemp, lux;
         delay(100);
       }
+      digitalWrite(ledpin, LOW);
+      setAllMotors(0);
     }
     delay(100);
   }
@@ -403,25 +433,29 @@ void loop() {
   Serial.println("***STARTED***");
   setDefaultMotors();
 
-  while(true){
+  /*while (true) {
+    //printDist (true);
     uint16_t r, g, b, c, colorTemp, lux;
     getColor(r, g, b, c, colorTemp, lux, true);
-  }
+    Serial.println(isCOLOR_red(r,g,b));
+  }*/
+
+  /*while (true) {
+    printDist (true);
+    
+  }*/
 
   while (true) {
-    printDist (false);
     uint16_t r, g, b, c, colorTemp, lux;
     getColor(r, g, b, c, colorTemp, lux, true);
+    int avgdistf = avgDistance('f');
     
     if (isCOLOR_red(r, g, b) && !ignoreRed) { //ROSSO
+      Serial.println("ROSSSOOOOOO");
       setAllMotors(0);
       ignoreRed = true;
       delay(100);
-      setMotor('f', 'l', -100);
-      setMotor('f', 'r', -100);
-      setMotor('b', 'l', -100);
-      setMotor('b', 'r', -10);
-      delay(600);
+      setAllMotors(100);      delay(350);
       setAllMotors(0);
       delay(50);
       DROP();
@@ -431,7 +465,7 @@ void loop() {
       Serial.println("NEROOOOO");
       setAllMotors(0);
       ignoreBlack = true;
-      delay(200);
+      delay(100);
       setMotor('f', 'l', 100);
       setMotor('f', 'r', -100);
       setMotor('b', 'l', 100);
@@ -443,16 +477,16 @@ void loop() {
       ignoreRed = false;
       ignoreBlack = false;
     }
-    if (avgDistance('f') < 15 || avgDistance('f') > 400 || avgDifference(avgDistance('f')) < 4) {
-      if (avgDifference(avgDistance('f')) < 4) { Serial.println("CORRETTIVOOO"); } else { Serial.println("CURVAAAAA"); }
+    if ((avgdistf < 11 || avgdistf > 400 /*|| avgDifference(avgdistf) < 4*/) && true) {
+      if (avgDifference(avgdistf) < 4) { Serial.println("CORRETTIVOOO"); } else { Serial.println("CURVAAAAA " + String(avgdistf)); }
       setAllMotors(0);
-      delay(500);
+      delay(100);
       setAllMotors(50);
       delay(1000); //while (avgDistance('f') > 2){ printData(false, true); delay(30); }
       setAllMotors(-50);
       delay(500);
       setAllMotors(0);
-      delay(500);
+      delay(100);
       bool dir = avgDistance('r') > avgDistance('l');
       setMotor('f', 'l', 100 * (dir ? 1 : -1));
       setMotor('f', 'r', 100 * (dir ? -1 : 1));
@@ -460,10 +494,10 @@ void loop() {
       setMotor('b', 'r', 100 * (dir ? -1 : 1));
       delay(1100); //vecchio: 1800, altro 1300
       setAllMotors(0);
-      delay(500);
+      delay(100);
       setDefaultMotors();
     }
-    updateDistances(avgDistance('f'));
+    updateDistances(avgdistf);
     delay(1);
   }
 }

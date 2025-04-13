@@ -9,6 +9,9 @@
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_120MS, TCS34725_GAIN_1X);
 
+#define TURN90 1000 //prima 1320 //dop 1200
+#define TURN180 2200 //prima 2780 //pria dopo 2880
+
 #define trig_f 23
 #define trig_l 25
 #define trig_r 27
@@ -406,7 +409,7 @@ bool isCOLOR_red (uint16_t r, uint16_t g, uint16_t b){
 
 bool isCOLOR_black (uint16_t r, uint16_t g, uint16_t b){
   //(int)lux < 190
-  return (isInRange(r, calibration.black.r, 0.6, 1.4) && isInRange(g, calibration.black.g, 0.6, 1.4) && isInRange(b, calibration.black.b, 0.6, 1.4));
+  return (isInRange(r, calibration.black.r, 0.8, 1.2) && isInRange(g, calibration.black.g,  0.8, 1.2) && isInRange(b, calibration.black.b,  0.8, 1.2));
 }
 
 void loop() {
@@ -531,11 +534,18 @@ void loop() {
       setAllMotors(0);
       ignoreBlack = true;
       delay(100);
-      setMotor('f', 'l', 100);
-      setMotor('f', 'r', -100);
-      setMotor('b', 'l', 100);
-      setMotor('b', 'r', -100);
-      delay(2780);
+      setAllMotors(40);
+      delay(300);
+      setAllMotors(0);
+      getColor(r, g, b, c, colorTemp, lux, true);
+      if (isCOLOR_black(r, g, b)){
+        delay(100);
+        setMotor('f', 'l', 100);
+        setMotor('f', 'r', -100);
+        setMotor('b', 'l', 100);
+        setMotor('b', 'r', -100);
+        delay(TURN180);
+      }
       setDefaultMotors();
       avgdistf = avgDistance('f');
     }
@@ -587,7 +597,7 @@ void loop() {
       setMotor('f', 'r', 100 * (dir ? -1 : 1));
       setMotor('b', 'l', 100 * (dir ? 1 : -1));
       setMotor('b', 'r', 100 * (dir ? -1 : 1));
-      delay(1320); //vecchio: 1800, altro 1300
+      delay(TURN90); //vecchio: 1800, altro 1300
       setAllMotors(0);
       delay(100);
       setDefaultMotors();
